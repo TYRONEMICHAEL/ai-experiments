@@ -1,0 +1,92 @@
+{
+  "default_user": [
+    {
+      "id": "4076a7ed-bdae-4770-b573-860e9606fe6e",
+      "text": "User is interested in programming languages, particularly TypeScript, and likely has a strong technical background or involvement in software development, as suggested by their engagement with the topic and their inquiry about Tapscrub, indicating a preference for deep discussions about programming tools and frameworks.",
+      "created_at": "2025-06-21T01:45:16.510593",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "2d76851e-fe0e-43c0-b4f9-2fdab9a6cd92",
+      "text": "User is focused on learning about advanced data structures, particularly interested in direct to the select graphs in the context of programming or software development, and prefers discussions that delve into specialized topics rather than broader programming languages like TypeScript.",
+      "created_at": "2025-06-21T01:45:30.998783",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "3b6918e3-cdcb-4ac1-9436-b0f5a774304f",
+      "text": "User has a strong interest in advanced programming concepts, particularly in TypeScript and data structures, but may have a playful or whimsical communication style, as indicated by their unexpected response referencing \"silica graph stags,\" suggesting a creative or humorous approach to technical discussions and an enjoyment for blending technical jargon with imaginative language.",
+      "created_at": "2025-06-21T01:45:38.704443",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "adfe2e75-a0f4-4f77-a75b-5da71e5a94f0",
+      "text": "User has a playful and informal communication style, often using light-hearted expressions like \"Dag\" to signal sarcasm or humor, which suggests they value a fun and relaxed interaction over technical discussions; this indicates they may benefit from a conversational tone that incorporates humor and casual references, rather than strictly focusing on detailed technical information.",
+      "created_at": "2025-06-21T01:45:48.010837",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "ec1161ac-4b1b-48d6-9e98-fc534b38056c",
+      "text": "The user is interested in understanding complex concepts, such as programming, but prefers to receive information at a high level rather than in-depth technical detail, indicating they may be a beginner or someone seeking to grasp the fundamentals before diving deeper, and they appreciate a straightforward and accessible communication style.",
+      "created_at": "2025-06-21T01:46:15.160483",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "ab513599-22b6-42b8-962f-d484999b7a6f",
+      "text": "User expresses frustration or impatience in conversations, likely indicating they prefer direct and concise responses rather than generalized statements, suggesting they may value efficiency in communication and are seeking immediate solutions or assistance to specific problems they are facing.",
+      "created_at": "2025-06-21T01:46:54.254418",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "769b8153-de5a-406a-8342-a7324f1c9ab4",
+      "text": "User is curious about programming languages, possibly has a background in technology or computer science, and is eager to learn more about them, indicating they may appreciate conversations that include technical discussions, tutorials, or insights into coding best practices.",
+      "created_at": "2025-06-21T01:48:19.929294",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "266f1fea-c269-41a8-9c37-ce3e8ab3f7db",
+      "text": "User is currently focused on learning about binary trees, indicating a strong interest in data structures, and may benefit from discussions that include practical applications or coding challenges related to tree algorithms in programming languages like JavaScript or TypeScript.",
+      "created_at": "2025-06-21T01:54:23.394418",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "92d31e8e-3d7d-4b9e-bf0d-3f77e880c47a",
+      "text": "The user has an interest in philosophical discussions or topics, suggesting they enjoy exploring deeper, abstract ideas and may appreciate more thoughtful, analytical conversations; they possibly have a reflective or introspective communication style that prefers depth over breadth.",
+      "created_at": "2025-06-21T02:01:31.047276",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "4e5b5941-d991-4aee-8496-df330526f1c9",
+      "text": "The user has a keen interest in philosophical discussions, particularly focusing on theories of mind and how they relate to the concept of expectation violation, indicating a preference for exploring complex and abstract ideas within philosophy, and they might appreciate a conversational approach that is open to nuanced and in-depth analysis.",
+      "created_at": "2025-06-21T02:01:57.692933",
+      "tags": [
+        "voe"
+      ]
+    },
+    {
+      "id": "f373ca9f-63a0-4fac-8072-aa866b5170f7",
+      "text": "The user is intrigued by cognitive processes and how they relate to learning and adaptation, showing a particular interest in understanding the mechanisms of brain function and human learning patterns, suggesting they value insights into neuroscience and cognitive psychology over immediate applications in fields like programming or AI.",
+      "created_at": "2025-06-21T02:02:49.123209",
+      "tags": [
+        "voe"
+      ]
+    }
+  ]
+}

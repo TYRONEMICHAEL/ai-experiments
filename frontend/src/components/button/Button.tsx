@@ -37,7 +37,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={`flex flex-row ${
+      className={`flex flex-row rounded-full ${
         disabled ? "pointer-events-none" : ""
       } ${size} font-mono uppercase ${buttonStyles} transition-all border ease-out duration-250 ${className}`}
       {...allProps}

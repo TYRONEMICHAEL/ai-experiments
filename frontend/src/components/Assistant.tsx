@@ -6,11 +6,13 @@ import { Tile } from "@/components/Tile";
 import { AgentMultibandAudioVisualizer } from "@/components/visualization/AgentMultibandAudioVisualizer";
 import { useMultibandTrackVolume } from "@/hooks/useTrackVolume";
 import { useWindowResize } from "@/hooks/useWindowResize";
+import { Fact, TranscriptEntry } from "@/lib/types";
 import {
   useConnectionState,
   useLocalParticipant,
   useTracks,
   useVoiceAssistant,
+  useTrackTranscription,
 } from "@livekit/components-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConnectionState, LocalParticipant, Track } from "livekit-client";
@@ -18,21 +20,12 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "./button/Button";
 import { MicrophoneButton } from "./MicrophoneButton";
 import { MenuSVG } from "./ui/icons";
+import VoEPanel from "./VoEPanel";
 
 export interface AssistantProps {
   title?: string;
   logo?: ReactNode;
   onConnect: (connect: boolean, opts?: { token: string; url: string }) => void;
-}
-
-export interface Voice {
-  id: string;
-  user_id: string | null;
-  is_public: boolean;
-  name: string;
-  description: string;
-  created_at: Date;
-  embedding: number[];
 }
 
 const headerHeight = 56;
@@ -46,18 +39,19 @@ const mobileBarWidth = 48;
 const barCount = 5;
 const defaultVolumes = Array.from({ length: barCount }, () => [0.0]);
 
-export default function Assistant({ title, logo, onConnect }: AssistantProps) {
-  const [voices, setVoices] = useState<Voice[]>([]);
+export default function Assistant({ onConnect }: AssistantProps) {
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const { localParticipant } = useLocalParticipant();
-  const [currentVoiceId, setCurrentVoiceId] = useState<string>("");
-  const [showVoices, setShowVoices] = useState(true);
+  const [showVoEPanel, setShowVoEPanel] = useState(true);
   const windowSize = useWindowResize();
   const {
     agent: agentParticipant,
     state: agentState,
     audioTrack: agentAudioTrack,
     agentAttributes,
+    agentTranscriptions,
   } = useVoiceAssistant();
+  const [voeFacts, setVoeFacts] = useState<Fact[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const isAgentConnected = agentParticipant !== undefined;
 
@@ -65,22 +59,26 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
   const tracks = useTracks();
 
   useEffect(() => {
-    setShowVoices(windowSize.width >= mobileWindowWidth);
+    setShowVoEPanel(windowSize.width >= mobileWindowWidth);
     setIsMobile(windowSize.width < mobileWindowWidth);
   }, [windowSize]);
+
+  useEffect(() => {
+    if (agentParticipant?.attributes?.voe_facts) {
+        try {
+            const facts = JSON.parse(agentParticipant.attributes.voe_facts);
+            setVoeFacts(facts);
+        } catch (e) {
+            console.error("Failed to parse voe_facts", e);
+        }
+    }
+  }, [agentParticipant?.attributes]);
 
   useEffect(() => {
     if (roomState === ConnectionState.Connected) {
       localParticipant.setMicrophoneEnabled(true);
     }
   }, [localParticipant, roomState]);
-
-  // use voices provided by the agent
-  useEffect(() => {
-    if (agentAttributes?.voices) {
-      setVoices(JSON.parse(agentAttributes.voices));
-    }
-  }, [agentAttributes?.voices]);
 
   const subscribedVolumes = useMultibandTrackVolume(
     agentAudioTrack?.publication.track,
@@ -99,19 +97,46 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
     9
   );
 
-  const onSelectVoice = useCallback(
-    (voiceId: string) => {
-      setCurrentVoiceId(voiceId);
-      localParticipant.setAttributes({
-        voice: voiceId,
-      });
-    },
-    [localParticipant, setCurrentVoiceId]
-  );
+  // Get user transcriptions from microphone track
+  const { segments: userTranscriptions } = useTrackTranscription({
+    participant: localParticipant,
+    source: Track.Source.Microphone,
+  });
+
+  // Handle agent transcriptions
+  useEffect(() => {
+    if (agentTranscriptions && agentTranscriptions.length > 0) {
+      const newEntries = agentTranscriptions.map((transcription, index) => ({
+        id: `agent-${Date.now()}-${index}`,
+        text: transcription.text,
+        speaker: "agent" as const,
+        timestamp: new Date(),
+      }));
+      setTranscript(prev => [...prev, ...newEntries]);
+    }
+  }, [agentTranscriptions]);
+
+  // Handle user transcriptions
+  useEffect(() => {
+    if (userTranscriptions && userTranscriptions.length > 0) {
+      const newEntries = userTranscriptions
+        .filter(segment => segment.final) // Only show final transcriptions
+        .map((transcription, index) => ({
+          id: `user-${transcription.id || Date.now()}-${index}`,
+          text: transcription.text,
+          speaker: "user" as const,
+          timestamp: new Date(),
+        }));
+      
+      if (newEntries.length > 0) {
+        setTranscript(prev => [...prev, ...newEntries]);
+      }
+    }
+  }, [userTranscriptions]);
 
   const audioTileContent = useMemo(() => {
     const conversationToolbar = (
-      <div className="fixed z-50 md:absolute left-1/2 bottom-4 md:bottom-auto md:top-1/2 -translate-y-1/2 -translate-x-1/2">
+      <div className="fixed z-50 md:absolute left-1/2 bottom-4 md:bottom-auto md:bottom-8 -translate-x-1/2">
         <motion.div
           className="flex gap-3"
           initial={{
@@ -147,7 +172,7 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
             state="secondary"
             size="medium"
             onClick={() => {
-              setShowVoices(!showVoices);
+              setShowVoEPanel(!showVoEPanel);
             }}
           >
             <MenuSVG />
@@ -155,11 +180,13 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
         </motion.div>
       </div>
     );
+
     const isLoading =
       roomState === ConnectionState.Connecting ||
       (!agentAudioTrack && roomState === ConnectionState.Connected);
+
     const startConversationButton = (
-      <div className="fixed bottom-2 md:bottom-auto md:absolute left-1/2 md:top-1/2 -translate-y-1/2 -translate-x-1/2 w-11/12 md:w-auto text-center">
+      <div className="fixed bottom-2 md:bottom-auto md:absolute left-1/2 md:bottom-8 -translate-x-1/2 w-11/12 md:w-auto text-center">
         <motion.div
           className="flex gap-3"
           initial={{
@@ -204,9 +231,109 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
         </motion.div>
       </div>
     );
+
+    // Show conversation history with gradual fade-out
+    const maxVisibleMessages = 3;
+    const visibleMessages = transcript.slice(-maxVisibleMessages);
+    
+    // Get interim user transcription (what's currently being spoken)
+    const interimText = userTranscriptions && userTranscriptions.length > 0 
+      ? userTranscriptions[userTranscriptions.length - 1]?.text || ""
+      : "";
+    const hasInterimText = interimText && interimText.length > 0 && !userTranscriptions[userTranscriptions.length - 1]?.final;
+
     const visualizerContent = (
-      <div className="flex flex-col items-center justify-space-between h-full w-full pb-12">
-        <div className="h-full flex">
+      <div className="flex flex-col items-center justify-center h-full w-full relative">
+        {/* Text Display with left fade animation */}
+        <div className="absolute inset-0 flex flex-col justify-center px-8 pb-48">
+          {/* Assistant label at top */}
+          <div className="text-center mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            >
+              <p className="text-sm text-white/60 font-mono tracking-wider uppercase">
+                Assistant
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Main content area */}
+          <div className="flex-1 flex items-center justify-center">
+            {!agentAudioTrack ? (
+              <motion.div
+                className="text-center"
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              >
+                <h2 className="text-2xl md:text-3xl font-light text-white font-spline">
+                  How can I help you?
+                </h2>
+              </motion.div>
+            ) : (
+              <div className="w-full max-w-4xl">
+                {/* Conversation with left-fade effect */}
+                <div className="relative">
+                  {/* Gradient mask for left fade */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-background/20 pointer-events-none z-10"></div>
+                  
+                  <AnimatePresence mode="popLayout">
+                    {visibleMessages.map((entry, index) => {
+                      const isLatest = index === visibleMessages.length - 1;
+                      const opacity = isLatest ? 1 : index === visibleMessages.length - 2 ? 0.6 : 0.3;
+                      
+                      return (
+                        <motion.div
+                          key={entry.id}
+                          className="mb-4"
+                          initial={{ opacity: 0, x: -50 }}
+                          animate={{ 
+                            opacity, 
+                            x: isLatest ? 0 : -20,
+                            transition: { duration: 0.8, ease: "easeOut" }
+                          }}
+                          exit={{ 
+                            opacity: 0, 
+                            x: -100,
+                            transition: { duration: 0.5 }
+                          }}
+                          layout
+                        >
+                          <p className="text-lg md:text-xl font-light leading-relaxed font-spline text-white">
+                            {entry.text}
+                          </p>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                  
+                  {/* Live interim text */}
+                  <AnimatePresence>
+                    {hasInterimText && (
+                      <motion.div
+                        key="interim"
+                        className="mb-4"
+                        initial={{ opacity: 0, x: -30 }}
+                        animate={{ opacity: 0.8, x: 0 }}
+                        exit={{ opacity: 0, x: -50 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        <p className="text-lg md:text-xl font-light leading-relaxed font-spline text-blue-200">
+                          {interimText}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Audio Visualizer - moved to bottom */}
+        <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2">
           <AgentMultibandAudioVisualizer
             state={agentState}
             barWidth={isMobile ? mobileBarWidth : desktopBarWidth}
@@ -216,72 +343,28 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
             gap={16}
           />
         </div>
-        <div className="min-h-20 w-full relative">
-          <AnimatePresence>
-            {!agentAudioTrack ? startConversationButton : null}
-          </AnimatePresence>
-          <AnimatePresence>
-            {agentAudioTrack ? conversationToolbar : null}
-          </AnimatePresence>
-        </div>
+
+        {/* Controls at bottom */}
+        <AnimatePresence>
+          {!agentAudioTrack ? startConversationButton : null}
+        </AnimatePresence>
+        <AnimatePresence>
+          {agentAudioTrack ? conversationToolbar : null}
+        </AnimatePresence>
       </div>
     );
 
     return visualizerContent;
-  }, [
-    localMultibandVolume,
-    showVoices,
-    roomState,
-    agentAudioTrack,
-    isMobile,
-    subscribedVolumes,
-    onConnect,
-    agentState,
-  ]);
-
-  const voiceSelectionPanel = useMemo(() => {
-    return (
-      <div className="flex flex-col h-full w-full items-start">
-        {isAgentConnected && voices && voices.length > 0 && (
-          <div className="w-full text-foreground py-4 relative">
-            <div className="sticky bg-background py-2 top-0 flex flex-row justify-between items-center px-4 text-xs uppercase tracking-wider">
-              <h3 className="font-mono font-semibold text-sm">Voices</h3>
-            </div>
-            <div className="px-4 py-2 text-xs text-foreground leading-normal">
-              <div className={"flex flex-col text-left h-full"}>
-                {voices.map((voice) => (
-                  <button
-                    onClick={() => {
-                      onSelectVoice(voice.id);
-                    }}
-                    className={`w-full text-left px-3 py-2 font-mono text-lg md:text-sm ${
-                      voice.id === currentVoiceId
-                        ? "bg-foreground text-background"
-                        : "hover:bg-white/10"
-                    }`}
-                    key={voice.id}
-                  >
-                    {voice.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }, [isAgentConnected, voices, currentVoiceId, onSelectVoice]);
+  }, [localMultibandVolume, roomState, agentAudioTrack, transcript, userTranscriptions, agentState, isMobile, subscribedVolumes, onConnect, showVoEPanel]);
 
   return (
     <>
-      <Header
-        title={title}
-        logo={logo}
+      {/* <Header
         height={headerHeight}
         onConnectClicked={() =>
           onConnect(roomState === ConnectionState.Disconnected)
         }
-      />
+      /> */}
       <div
         className={`flex grow w-full selection:bg-cyan-900`}
         style={{ height: `calc(100% - ${headerHeight}px)` }}
@@ -297,21 +380,23 @@ export default function Assistant({ title, logo, onConnect }: AssistantProps) {
         </div>
         <Tile
           padding={false}
-          className={`h-full w-full basis-1/4 items-start overflow-y-auto hidden max-w-[480px] border-l border-white/20 ${
-            showVoices ? "md:flex" : "md:hidden"
+          className={`h-full w-full basis-1/4 items-start overflow-hidden hidden max-w-[480px] border-l border-white/20 ${
+            showVoEPanel ? "md:flex" : "md:hidden"
           }`}
           childrenClassName="h-full grow items-start"
         >
-          {voiceSelectionPanel}
+          <VoEPanel facts={voeFacts} />
         </Tile>
         <div
           className={`bg-white/80 backdrop-blur-lg absolute w-full items-start transition-all duration-100 md:hidden ${
-            showVoices ? "translate-x-0" : "translate-x-full"
+            showVoEPanel ? "translate-x-0" : "translate-x-full"
           }`}
           style={{ height: `calc(100% - ${headerHeight}px)` }}
         >
           <div className="overflow-y-scroll h-full w-full">
-            <div className="pb-32">{voiceSelectionPanel}</div>
+            <div className="pb-32">
+              <VoEPanel facts={voeFacts} />
+            </div>
           </div>
           <div className="pointer-events-none absolute z-10 bottom-0 w-full h-64 bg-gradient-to-t from-white to-transparent"></div>
         </div>
